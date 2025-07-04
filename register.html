@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - InvestBridge</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/auth.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fas fa-handshake"></i>
+                    <span>InvestBridge</span>
+                </div>
+                <h2>Create Account</h2>
+                <p>Join India's premier investment platform</p>
+            </div>
+
+            <form id="registerForm" class="auth-form">
+                <div class="user-type-selector">
+                    <label>I am a:</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="userType" value="business" checked>
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-lightbulb"></i>
+                            Entrepreneur
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="userType" value="investor">
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-coins"></i>
+                            Investor
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="userType" value="banker">
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-university"></i>
+                            Banker
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="userType" value="advisor">
+                            <span class="radio-custom"></span>
+                            <i class="fas fa-user-tie"></i>
+                            Advisor
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="fullName">Full Name</label>
+                    <input type="text" id="fullName" name="fullName" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required>
+                </div>
+
+                <!-- Dynamic fields based on user type -->
+                <div id="dynamicFields"></div>
+
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="terms" required>
+                        <span class="checkbox-custom"></span>
+                        I agree to the <a href="#" class="link">Terms of Service</a> and <a href="#" class="link">Privacy Policy</a>
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">Create Account</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Already have an account? <a href="login.html" class="link">Sign in</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Creating your account...</p>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    
+    <script src="js/config/firebase-config.js"></script>
+    <script src="js/utils/logger.js"></script>
+    <script src="js/auth/register.js"></script>
+</body>
+</html>
