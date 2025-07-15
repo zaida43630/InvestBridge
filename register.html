@@ -101,13 +101,14 @@
         <p>Creating your account...</p>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    
-    <script src="js/config/firebase-config.js"></script>
+    <!-- Firebase SDK v9 compat - Load these FIRST -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <!-- Load scripts in order: Firebase config, then utilities, then page-specific -->
     <script src="js/utils/logger.js"></script>
+    <script src="js/config/firebase-config.js"></script>
     <script src="js/auth/register.js"></script>
 </body>
 </html>

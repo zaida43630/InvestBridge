@@ -1,5 +1,22 @@
+// Wait for Firebase to be ready
+function waitForFirebase() {
+  return new Promise((resolve) => {
+    const checkFirebase = () => {
+      if (window.firebaseAuth && window.firebaseDB) {
+        resolve()
+      } else {
+        setTimeout(checkFirebase, 100)
+      }
+    }
+    checkFirebase()
+  })
+}
+
 // Registration functionality
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // Wait for Firebase to be initialized
+  await waitForFirebase()
+
   window.logger.info("Register page loaded")
 
   const registerForm = document.getElementById("registerForm")
@@ -274,7 +291,7 @@ document.addEventListener("DOMContentLoaded", () => {
     showLoading()
 
     try {
-      // Create user account
+      // Create user account using compat mode
       const userCredential = await window.firebaseAuth.createUserWithEmailAndPassword(data.email, data.password)
 
       const user = userCredential.user
@@ -284,7 +301,7 @@ document.addEventListener("DOMContentLoaded", () => {
         displayName: data.fullName,
       })
 
-      // Save user data to Firestore
+      // Prepare user data for Firestore
       const userData = {
         uid: user.uid,
         fullName: data.fullName,
@@ -303,30 +320,33 @@ document.addEventListener("DOMContentLoaded", () => {
           userData.companyName = data.companyName
           userData.businessCategory = data.businessCategory
           userData.businessStage = data.businessStage
-          userData.fundingRequired = Number.parseInt(data.fundingRequired)
+          userData.fundingRequired = Number.parseInt(data.fundingRequired) || 0
           break
 
         case "investor":
           userData.investorType = data.investorType
           userData.investmentRange = data.investmentRange
-          userData.preferredSectors = data.preferredSectors
+          userData.preferredSectors = Array.isArray(data.preferredSectors)
+            ? data.preferredSectors
+            : [data.preferredSectors]
           break
 
         case "banker":
           userData.bankName = data.bankName
           userData.designation = data.designation
-          userData.loanTypes = data.loanTypes
-          userData.maxLoanAmount = Number.parseInt(data.maxLoanAmount)
+          userData.loanTypes = Array.isArray(data.loanTypes) ? data.loanTypes : [data.loanTypes]
+          userData.maxLoanAmount = Number.parseInt(data.maxLoanAmount) || 0
           break
 
         case "advisor":
-          userData.expertise = data.expertise
+          userData.expertise = Array.isArray(data.expertise) ? data.expertise : [data.expertise]
           userData.experience = data.experience
-          userData.consultingRate = data.consultingRate ? Number.parseInt(data.consultingRate) : 0
-          userData.certifications = data.certifications
+          userData.consultingRate = Number.parseInt(data.consultingRate) || 0
+          userData.certifications = data.certifications || ""
           break
       }
 
+      // Save user data to Firestore
       await window.firebaseDB.collection("users").doc(user.uid).set(userData)
 
       window.logger.info("User registered successfully", {
@@ -345,19 +365,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
       let errorMessage = "Registration failed. Please try again."
 
-      switch (error.code) {
-        case "auth/email-already-in-use":
-          errorMessage = "An account with this email already exists."
-          break
-        case "auth/weak-password":
-          errorMessage = "Password is too weak. Please choose a stronger password."
-          break
-        case "auth/invalid-email":
-          errorMessage = "Please enter a valid email address."
-          break
-        case "auth/network-request-failed":
-          errorMessage = "Network error. Please check your connection and try again."
-          break
+      if (error.code) {
+        switch (error.code) {
+          case "auth/email-already-in-use":
+            errorMessage = "An account with this email already exists."
+            break
+          case "auth/weak-password":
+            errorMessage = "Password is too weak. Please choose a stronger password."
+            break
+          case "auth/invalid-email":
+            errorMessage = "Please enter a valid email address."
+            break
+          case "auth/network-request-failed":
+            errorMessage = "Network error. Please check your connection and try again."
+            break
+          case "permission-denied":
+            errorMessage = "Permission denied. Please try again or contact support."
+            break
+        }
       }
 
       showError(errorMessage)

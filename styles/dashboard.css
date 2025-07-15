@@ -15,7 +15,7 @@
   position: fixed;
   height: 100vh;
   z-index: 1000;
-  transition: var(--transition);
+  transition: transform 0.3s ease-in-out; /* Added transition */
 }
 
 .sidebar-header {
@@ -82,10 +82,11 @@
 /* Main Content */
 .main-content {
   flex: 1;
-  margin-left: 280px;
+  margin-left: 280px; /* Matches sidebar width */
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  transition: margin-left 0.3s ease-in-out; /* Added transition */
 }
 
 .dashboard-header {
@@ -107,7 +108,7 @@
 }
 
 .sidebar-toggle {
-  display: none;
+  display: none; /* Hidden by default on desktop */
   background: none;
   border: none;
   font-size: 1.2rem;
@@ -306,6 +307,35 @@
   color: var(--text-primary);
 }
 
+/* Loading State for Content Area */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px; /* Ensure it's visible */
+  color: var(--text-secondary);
+}
+
+.loading-state .spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top: 3px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
   .sidebar {
@@ -317,11 +347,11 @@
   }
 
   .main-content {
-    margin-left: 0;
+    margin-left: 0; /* No margin when sidebar is hidden */
   }
 
   .sidebar-toggle {
-    display: block;
+    display: block; /* Show toggle button on smaller screens */
   }
 
   .form-grid {
@@ -330,6 +360,10 @@
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .main-content.sidebar-active {
+    margin-left: 280px; /* Push content when sidebar is active */
   }
 }
 

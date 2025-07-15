@@ -1,8 +1,10 @@
-// Logging Utility
+// Logging Utility - Fixed for Firestore compatibility
 class Logger {
   constructor() {
     this.logLevel = "INFO" // DEBUG, INFO, WARN, ERROR
     this.logs = []
+    this.firebaseReady = false
+    this.pendingLogs = []
   }
 
   debug(message, data = null) {
@@ -23,13 +25,18 @@ class Logger {
 
   _log(level, message, data) {
     const timestamp = new Date().toISOString()
+
+    // Sanitize data for Firestore compatibility
+    const sanitizedData = this._sanitizeData(data)
+
     const logEntry = {
       timestamp,
       level,
-      message,
-      data,
+      message: String(message),
+      data: sanitizedData,
       url: window.location.href,
       userAgent: navigator.userAgent,
+      sessionId: this._getSessionId(),
     }
 
     // Store log entry
@@ -43,10 +50,12 @@ class Logger {
       ERROR: "color: #ef4444; font-weight: bold",
     }
 
-    console.log(`%c[${timestamp}] ${level}: ${message}`, styles[level], data || "")
+    console.log(`%c[${timestamp}] ${level}: ${message}`, styles[level], sanitizedData || "")
 
-    // Send to Firebase for persistent logging
-    this._sendToFirebase(logEntry)
+    // Send to Firebase for persistent logging (only for important logs)
+    if (level === "ERROR" || level === "WARN") {
+      this._sendToFirebase(logEntry)
+    }
 
     // Keep only last 100 logs in memory
     if (this.logs.length > 100) {
@@ -54,16 +63,89 @@ class Logger {
     }
   }
 
+  _sanitizeData(data) {
+    if (data === null || data === undefined) {
+      return null
+    }
+
+    try {
+      // Convert to JSON and back to remove functions, circular references, etc.
+      const jsonString = JSON.stringify(data, (key, value) => {
+        // Handle different types of values
+        if (typeof value === "function") {
+          return "[Function]"
+        }
+        if (value instanceof Error) {
+          return {
+            name: value.name,
+            message: value.message,
+            stack: value.stack,
+          }
+        }
+        if (value instanceof Date) {
+          return value.toISOString()
+        }
+        if (typeof value === "object" && value !== null) {
+          // Check for circular references
+          if (value.constructor && value.constructor.name !== "Object" && value.constructor.name !== "Array") {
+            return `[${value.constructor.name}]`
+          }
+        }
+        return value
+      })
+
+      return JSON.parse(jsonString)
+    } catch (error) {
+      // If sanitization fails, return a simple string representation
+      return String(data)
+    }
+  }
+
+  _getSessionId() {
+    let sessionId = sessionStorage.getItem("logSessionId")
+    if (!sessionId) {
+      sessionId = Date.now().toString(36) + Math.random().toString(36).substr(2)
+      sessionStorage.setItem("logSessionId", sessionId)
+    }
+    return sessionId
+  }
+
   async _sendToFirebase(logEntry) {
     try {
-      if (window.firebaseDB) {
-        await window.firebaseDB.collection("logs").add({
-          ...logEntry,
-          userId: window.firebaseAuth?.currentUser?.uid || "anonymous",
-        })
+      // Check if Firebase is available and user is authenticated
+      if (!window.firebaseDB) {
+        this.pendingLogs.push(logEntry)
+        return
       }
+
+      // Only send logs if user is authenticated (optional)
+      const currentUser = window.firebaseAuth?.currentUser
+
+      const logData = {
+        ...logEntry,
+        userId: currentUser?.uid || "anonymous",
+        createdAt: window.firebase.firestore.FieldValue.serverTimestamp(),
+      }
+
+      await window.firebaseDB.collection("logs").add(logData)
     } catch (error) {
-      console.error("Failed to send log to Firebase:", error)
+      // Don't log Firebase errors to avoid infinite loops
+      console.warn("Failed to send log to Firebase:", error.message)
+
+      // Store failed logs for retry
+      this.pendingLogs.push(logEntry)
+    }
+  }
+
+  // Retry sending pending logs when Firebase becomes available
+  async retryPendingLogs() {
+    if (this.pendingLogs.length === 0) return
+
+    const logsToRetry = [...this.pendingLogs]
+    this.pendingLogs = []
+
+    for (const logEntry of logsToRetry) {
+      await this._sendToFirebase(logEntry)
     }
   }
 
@@ -78,6 +160,7 @@ class Logger {
   // Clear logs
   clearLogs() {
     this.logs = []
+    this.pendingLogs = []
     console.log("Logs cleared")
   }
 
@@ -93,6 +176,12 @@ class Logger {
     link.click()
 
     URL.revokeObjectURL(url)
+  }
+
+  // Set Firebase ready state
+  setFirebaseReady() {
+    this.firebaseReady = true
+    this.retryPendingLogs()
   }
 }
 
@@ -112,14 +201,14 @@ window.addEventListener("error", (event) => {
     filename: event.filename,
     lineno: event.lineno,
     colno: event.colno,
-    error: event.error?.stack,
+    stack: event.error?.stack,
   })
 })
 
 // Log unhandled promise rejections
 window.addEventListener("unhandledrejection", (event) => {
   window.logger.error("Unhandled promise rejection", {
-    reason: event.reason,
-    promise: event.promise,
+    reason: event.reason?.message || event.reason,
+    stack: event.reason?.stack,
   })
 })

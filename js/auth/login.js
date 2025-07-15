@@ -1,9 +1,27 @@
+// Wait for Firebase to be ready
+function waitForFirebase() {
+  return new Promise((resolve) => {
+    const checkFirebase = () => {
+      if (window.firebaseAuth && window.firebaseDB) {
+        resolve()
+      } else {
+        setTimeout(checkFirebase, 100)
+      }
+    }
+    checkFirebase()
+  })
+}
+
 // Login functionality
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  // Wait for Firebase to be initialized
+  await waitForFirebase()
+
   window.logger.info("Login page loaded")
 
   const loginForm = document.getElementById("loginForm")
   const loadingOverlay = document.getElementById("loadingOverlay")
+  const submitButton = loginForm.querySelector('button[type="submit"]')
 
   // Check if user is already logged in
   window.firebaseAuth.onAuthStateChanged((user) => {
@@ -16,19 +34,19 @@ document.addEventListener("DOMContentLoaded", () => {
   // Show loading state
   function showLoading() {
     loadingOverlay.classList.add("active")
-    loginForm.querySelector('button[type="submit"]').classList.add("loading")
+    submitButton.classList.add("loading")
   }
 
   // Hide loading state
   function hideLoading() {
     loadingOverlay.classList.remove("active")
-    loginForm.querySelector('button[type="submit"]').classList.remove("loading")
+    submitButton.classList.remove("loading")
   }
 
   // Show error message
   function showError(message) {
-    const existingAlert = document.querySelector(".alert")
-    if (existingAlert) existingAlert.remove()
+    const existingAlert = loginForm.querySelector(".alert")
+    if (existingAlert) existingAlert.remove() // Remove any existing alert
 
     const alert = document.createElement("div")
     alert.className = "alert alert-error"
@@ -40,8 +58,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Show success message
   function showSuccess(message) {
-    const existingAlert = document.querySelector(".alert")
-    if (existingAlert) existingAlert.remove()
+    const existingAlert = loginForm.querySelector(".alert")
+    if (existingAlert) existingAlert.remove() // Remove any existing alert
 
     const alert = document.createElement("div")
     alert.className = "alert alert-success"
@@ -73,6 +91,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.logger.info("Login form submitted")
 
+    // Clear previous errors
+    const existingAlert = loginForm.querySelector(".alert")
+    if (existingAlert) existingAlert.remove()
+
     const formData = new FormData(this)
     const email = formData.get("email")
     const password = formData.get("password")
@@ -88,8 +110,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     showLoading()
 
+    let error = null // Declare error variable
+
     try {
-      // Set persistence based on remember me checkbox
+      // Set persistence based on remember me checkbox using compat mode
       const persistence = rememberMe
         ? window.firebase.auth.Auth.Persistence.LOCAL
         : window.firebase.auth.Auth.Persistence.SESSION
@@ -109,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const userData = userDoc.data()
 
-      // Update last login
+      // Update last login using compat mode
       await window.firebaseDB.collection("users").doc(user.uid).update({
         lastLogin: window.firebase.firestore.FieldValue.serverTimestamp(),
       })
@@ -126,12 +150,12 @@ document.addEventListener("DOMContentLoaded", () => {
       setTimeout(() => {
         window.location.href = "dashboard.html"
       }, 1000)
-    } catch (error) {
-      window.logger.error("Login failed", error)
+    } catch (err) {
+      window.logger.error("Login failed", err)
 
       let errorMessage = "Login failed. Please try again."
 
-      switch (error.code) {
+      switch (err.code) {
         case "auth/user-not-found":
           errorMessage = "No account found with this email address."
           break
@@ -150,11 +174,21 @@ document.addEventListener("DOMContentLoaded", () => {
         case "auth/network-request-failed":
           errorMessage = "Network error. Please check your connection and try again."
           break
+        default:
+          errorMessage = err.message || errorMessage // Fallback to generic message or actual error message
+          break
       }
 
       showError(errorMessage)
+      error = err // Assign error variable
     } finally {
-      hideLoading()
+      // Always hide loading, but with a slight delay after an error for visibility
+      setTimeout(
+        () => {
+          hideLoading()
+        },
+        error ? 1500 : 0,
+      ) // Delay if there was an error
     }
   })
 
@@ -164,33 +198,47 @@ document.addEventListener("DOMContentLoaded", () => {
     forgotPasswordLink.addEventListener("click", async (e) => {
       e.preventDefault()
 
-      const email = document.getElementById("email").value
+      const emailInput = document.getElementById("email")
+      const email = emailInput.value
 
       if (!email) {
-        showError("Please enter your email address first")
+        showError("Please enter your email address first to reset password.")
+        emailInput.focus()
         return
       }
+
+      showLoading() // Show loading for password reset
+
+      let error = null // Declare error variable
 
       try {
         await window.firebaseAuth.sendPasswordResetEmail(email)
         showSuccess("Password reset email sent! Check your inbox.")
 
         window.logger.info("Password reset email sent", { email })
-      } catch (error) {
-        window.logger.error("Password reset failed", error)
+      } catch (err) {
+        window.logger.error("Password reset failed", err)
 
         let errorMessage = "Failed to send password reset email."
 
-        switch (error.code) {
+        switch (err.code) {
           case "auth/user-not-found":
             errorMessage = "No account found with this email address."
             break
           case "auth/invalid-email":
             errorMessage = "Please enter a valid email address."
             break
+          default:
+            errorMessage = err.message || errorMessage
+            break
         }
 
         showError(errorMessage)
+        error = err // Assign error variable
+      } finally {
+        setTimeout(() => {
+          hideLoading()
+        }, 1500) // Always hide loading with a delay for password reset
       }
     })
   }
